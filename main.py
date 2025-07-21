@@ -12,6 +12,7 @@ from temporal_data import TemporalDataModule
 from temporal_data import TemporalDataset
 from mvar import mvar
 from utils import plot_predictions
+from utils import plot_mat
 
 def main():
     # ------------------------
@@ -83,6 +84,10 @@ def main():
     print(f"test rmse: {test_mse:1.4e}, test nrmse:\
            {test_nmse:1.4e}, test mae: {test_mae:1.4e}")
     plot_predictions(y_true, y_pred)
+
+    error_cov = np.cov(y_true.T-y_pred.T)
+    plot_mat([error_cov])
+
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+import seaborn as sns
 
 def plot_predictions(y_true, y_pred=None,
                      n_plots=None,
@@ -29,6 +30,37 @@ def plot_predictions(y_true, y_pred=None,
 
     axes[-1].set_xlabel("Sample Index")
     fig.suptitle(title)
+    plt.tight_layout()
+    plt.show()
+
+def plot_mat(A, n_plots=None):
+    """
+    A: list of matrices to plot
+    use for covariance matrix plotting or connectivity
+    """
+    N = len(A)
+    if n_plots is None:
+        n_plots = N
+    n_plots = min(n_plots, N)
+
+    fig, axes = plt.subplots(n_plots, 1,
+                             figsize=(10, 2.5 * n_plots),
+                             sharex=True)
+    if n_plots == 1:
+        axes = [axes]
+
+    for i in range(n_plots):
+        vmax = np.max(np.abs(A[i]))
+        sns.heatmap(A[i],
+                    annot=True,
+                    ax=axes[i],
+                    fmt=".3f",
+                    cmap='coolwarm',
+                    center=0,
+                    cbar=True,
+                    square=True,
+                    vmin = -vmax,
+                    vmax = vmax)
     plt.tight_layout()
     plt.show()
 
