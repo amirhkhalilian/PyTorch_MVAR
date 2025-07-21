@@ -124,3 +124,22 @@ class mvar(lightning.LightningModule):
         plt.tight_layout()
         plt.show()
 
+class sequential_mvar(mvar):
+    def __init__(self, n_vars, p, q, lr=1e-3, l1_ratio=0.0, mode='full'):
+        super().__init__(n_vars=n_vars, p=p, lr=lr, l1_ratio=l1_ratio, mode=mode)
+        self.hparams.q = q
+
+    def forward(self, x):
+        '''
+        x should be of shape [B, p, N]
+        gives predictions of shape [B, q, N]
+        '''
+        preds = []
+        B = x.shape[0]
+        x_input = x
+        for _ in range(self.hparams.q):
+            y_t = self.fc(torch.flip(x_input,dims=(1,)).reshape(B,-1)).unsqueeze(1)
+            preds.append(y_t)
+            x_input = torch.cat([x_input[:, 1:, :], y_t], dim=1)
+        return torch.cat(preds, dim=1)
+

@@ -101,7 +101,7 @@ class SequentialTemporalDataModule(L.LightningDataModule):
         self.shuffle = shuffle
 
     def setup(self, stage=None):
-        dataset = GRUTemporalDataset(self.data, self.p, self.q)
+        dataset = SequentialTemporalDataset(self.data, self.p, self.q)
         n_total = len(dataset)
         n_val = int(self.val_split * n_total)
         n_train = n_total - n_val
