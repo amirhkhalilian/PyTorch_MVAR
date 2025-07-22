@@ -15,7 +15,7 @@ from utils import plot_predictions
 from utils import plot_mat
 
 # setup model params
-p = 5
+p = 3
 
 def main():
     # ------------------------
