@@ -179,7 +179,7 @@ class conv_mvar(mvar):
             # diag only
             self.fc = nn.Conv1d(n_vars, n_vars, kernel_size=p, groups=n_vars, bias=False)
         else:
-            raise ValueError('accepted modes are full')
+            raise ValueError('accepted modes are full, diag')
         nn.init.zeros_(self.fc.weight)
 
     def forward(self, x):
