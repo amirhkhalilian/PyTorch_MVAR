@@ -42,7 +42,8 @@ def main():
         p=p,
         lr=1e-3,
         l1_ratio=0.0,
-        mode = 'full')
+        mode = 'full',
+        penalty = None)
 
     # ------------------------
     # Trainer

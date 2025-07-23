@@ -51,7 +51,7 @@ class OffDiagonalLinear(nn.Module):
 
 
 class mvar(lightning.LightningModule):
-    def __init__(self, n_vars, p, lr=1e-3, l1_ratio=0.0, mode='full'):
+    def __init__(self, n_vars, p, lr=1e-3, l1_ratio=0.0, mode='full', penalty=None):
         super().__init__()
         self.save_hyperparameters()
         if mode=='full':
@@ -70,12 +70,36 @@ class mvar(lightning.LightningModule):
     def forward(self, x):
         return self.fc(x)
 
+    def _compute_penalty(self):
+        W = self.fc.weight
+        n_vars = self.hparams.n_vars
+        p = self.hparams.p
+        penalty = self.hparams.penalty
+        if penalty is None:
+            return 0.0
+        else:
+            if penalty=="l1_loss":
+                penalty_loss = self.hparams.l1_ratio * W.abs().mean()
+            elif penalty=="group_loss":
+                W = W.view(n_vars, p, n_vars).permute(0, 2, 1)
+                ll = torch.norm(W,dim=-1).abs().mean()
+                penalty_loss = self.hparams.l1_ratio * ll
+            elif penalty=="sc_group_loss":
+                W = W.view(n_vars, p, n_vars).permute(0, 2, 1)
+                off_diag_mask = ~torch.eye(n_vars, dtype=torch.bool, device=W.device)
+                ll = torch.norm(W,dim=-1)
+                ll = ll[off_diag_mask].abs().mean()
+                penalty_loss = self.hparams.l1_ratio * ll
+            else:
+                raise ValueError('unsupported penalty type')
+            return penalty_loss
+
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
         mse_loss = nn.functional.mse_loss(y_hat,y)
-        l1_loss = self.hparams.l1_ratio * self.fc.weight.abs().mean()
-        loss = mse_loss +  l1_loss
+        penalty_loss = self._compute_penalty()
+        loss = mse_loss +  penalty_loss
         self.log("train_loss", loss)
         return loss
 
@@ -101,6 +125,7 @@ class mvar(lightning.LightningModule):
         if p == 1:
             axes = [axes]
         vmax = np.max(np.abs(W))
+
         for lag in range(p):
             ax = axes[lag]
             A_lag = W[:, lag * n_vars:(lag + 1) * n_vars]
@@ -125,8 +150,8 @@ class mvar(lightning.LightningModule):
         plt.show()
 
 class sequential_mvar(mvar):
-    def __init__(self, n_vars, p, q, lr=1e-3, l1_ratio=0.0, mode='full'):
-        super().__init__(n_vars=n_vars, p=p, lr=lr, l1_ratio=l1_ratio, mode=mode)
+    def __init__(self, n_vars, p, q, lr=1e-3, l1_ratio=0.0, mode='full', penalty=None):
+        super().__init__(n_vars=n_vars, p=p, lr=lr, l1_ratio=l1_ratio, mode=mode, penalty=penalty)
         self.hparams.q = q
 
     def forward(self, x):
@@ -144,7 +169,7 @@ class sequential_mvar(mvar):
         return torch.cat(preds, dim=1)
 
 class conv_mvar(mvar):
-    def __init__(self, n_vars, p, lr=1e-3, l1_ratio=0.0, mode='full'):
+    def __init__(self, n_vars, p, lr=1e-3, l1_ratio=0.0, mode='full', penalty=None):
         super().__init__(n_vars, p)
         self.save_hyperparameters()
         if mode=='full':
@@ -160,6 +185,27 @@ class conv_mvar(mvar):
     def forward(self, x):
         x = x.transpose(1,2)
         return self.fc(x).transpose(1,2)[:,:-1,:]
+
+    def _compute_penalty(self):
+        W = self.fc.weight
+        penalty = self.hparams.penalty
+        if penalty is None:
+            return 0.0
+        else:
+            if penalty=="l1_loss":
+                penalty_loss = self.hparams.l1_ratio * W.abs().mean()
+            elif penalty=="group_loss":
+                ll = torch.norm(W,dim=-1).abs().mean()
+                penalty_loss = self.hparams.l1_ratio * ll
+            elif penalty=="sc_group_loss":
+                off_diag_mask = ~torch.eye(self.hparams.n_vars,
+                                           dtype=torch.bool, device=W.device)
+                ll = torch.norm(W,dim=-1)
+                ll = ll[off_diag_mask].abs().mean()
+                penalty_loss = self.hparams.l1_ratio * ll
+            else:
+                raise ValueError('unsupported penalty type')
+            return penalty_loss
 
     def plot_weights(self):
         n_vars = self.hparams.n_vars
